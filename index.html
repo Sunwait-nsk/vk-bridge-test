@@ -1,1 +1,98 @@
 
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка VK Bridge</title>
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; color: #222; line-height: 1.5; }
+    button { display: block; width: 100%; margin: 12px 0; padding: 13px 16px; border: 0; border-radius: 8px; background: #447bba; color: white; font-size: 16px; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    #status { padding: 12px; background: #f1f3f5; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .note { color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Проверка VK Bridge</h1>
+  <p>Тестовая страница для приложения VK ID 54687502.</p>
+
+  <button id="init">1. Проверить связь с VK</button>
+  <button id="auth">2. Запросить разрешения photos, video, wall</button>
+
+  <div id="status">Откройте страницу внутри приложения VK и нажмите первую кнопку.</div>
+
+  <p class="note">Тест не публикует записи и не загружает файлы. Полный токен не отображается и не сохраняется.</p>
+
+  <script>
+    const statusBox = document.getElementById('status');
+    const initButton = document.getElementById('init');
+    const authButton = document.getElementById('auth');
+
+    function show(message) {
+      statusBox.textContent = message;
+    }
+
+    function errorText(error) {
+      if (!error) return 'Неизвестная ошибка';
+      return error.error_data?.error_reason ||
+             error.error_data?.error_msg ||
+             error.message ||
+             error.error_type ||
+             String(error);
+    }
+
+    initButton.addEventListener('click', async () => {
+      initButton.disabled = true;
+      show('Проверяем VK Bridge…');
+
+      try {
+        if (!window.vkBridge) {
+          throw new Error('Библиотека VK Bridge не загрузилась.');
+        }
+
+        const result = await vkBridge.send('VKWebAppInit');
+        show('VK Bridge отвечает. Инициализация выполнена.\nОтвет: ' + JSON.stringify(result));
+      } catch (error) {
+        show('Не удалось инициализировать VK Bridge.\n' + errorText(error));
+      } finally {
+        initButton.disabled = false;
+      }
+    });
+
+    authButton.addEventListener('click', async () => {
+      authButton.disabled = true;
+      show('Отправляем запрос разрешений в VK…');
+
+      try {
+        if (!window.vkBridge) {
+          throw new Error('Библиотека VK Bridge не загрузилась.');
+        }
+
+        const result = await vkBridge.send('VKWebAppGetAuthToken', {
+          app_id: 54687502,
+          scope: 'photos,video,wall'
+        });
+
+        const tokenPresent = Boolean(result && result.access_token);
+        const scopes = Array.isArray(result?.scope)
+          ? result.scope.join(', ')
+          : (result?.scope || 'не указаны');
+
+        show(
+          'VK вернул ответ на запрос доступа.\n' +
+          'Токен получен: ' + (tokenPresent ? 'ДА' : 'НЕТ') + '\n' +
+          'Разрешения в ответе: ' + scopes + '\n' +
+          'Полный токен намеренно не показывается и не сохраняется.'
+        );
+      } catch (error) {
+        show('Запрос доступа не выполнен или был отклонён.\n' + errorText(error));
+      } finally {
+        authButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
+
